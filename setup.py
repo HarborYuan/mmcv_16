@@ -3,7 +3,7 @@ import os
 import platform
 import re
 import warnings
-from pkg_resources import DistributionNotFound, get_distribution
+from pkg_resources import DistributionNotFound, get_distribution, parse_version
 from setuptools import find_packages, setup
 
 EXT_TYPE = ''
@@ -257,15 +257,16 @@ def get_extensions():
         # More details at https://github.com/pytorch/pytorch/pull/45956
         extra_compile_args = {'cxx': []}
 
-        # Since the PR (https://github.com/open-mmlab/mmcv/pull/1463) uses
-        # c++14 features, the argument ['std=c++14'] must be added here.
-        # However, in the windows environment, some standard libraries
-        # will depend on c++17 or higher. In fact, for the windows
-        # environment, the compiler will choose the appropriate compiler
-        # to compile those cpp files, so there is no need to add the
-        # argument
         if platform.system() != 'Windows':
-            extra_compile_args['cxx'] = ['-std=c++14']
+            if parse_version(torch.__version__) <= parse_version('1.12.1'):
+                extra_compile_args['cxx'] = ['-std=c++14']
+            else:
+                extra_compile_args['cxx'] = ['-std=c++17']
+        else:
+            if parse_version(torch.__version__) <= parse_version('1.12.1'):
+                extra_compile_args['cxx'] = ['/std:c++14']
+            else:
+                extra_compile_args['cxx'] = ['/std:c++17']
 
         include_dirs = []
 
@@ -345,7 +346,10 @@ def get_extensions():
         # to compile those cpp files, so there is no need to add the
         # argument
         if 'nvcc' in extra_compile_args and platform.system() != 'Windows':
-            extra_compile_args['nvcc'] += ['-std=c++14']
+            if parse_version(torch.__version__) <= parse_version('1.12.1'):
+                extra_compile_args['nvcc'] += ['-std=c++14']
+            else:
+                extra_compile_args['nvcc'] += ['-std=c++17']
 
         ext_ops = extension(
             name=ext_name,
